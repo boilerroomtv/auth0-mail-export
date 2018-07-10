@@ -1,10 +1,11 @@
 require('dotenv').config()
-const request = require("request")
+const request = require('request')
 const opn = require('opn')
 
+const FULL_DOMAIN = `https://${process.env.DOMAIN}`
 
 const getOptions = (url, body, token, method = 'POST') => ({
-  url: `https://${process.env.DOMAIN}${url}`,
+  url: `${FULL_DOMAIN}${url}`,
   method,
   headers: token ?
     {
@@ -14,12 +15,17 @@ const getOptions = (url, body, token, method = 'POST') => ({
     {
       'Content-Type': 'application/json',
     },
-  body,
+  body: JSON.stringify(body),
 })
 
 const options = getOptions(
   '/oauth/token',
-  `{"client_id":"${process.env.CLIENT_ID}","client_secret":"${process.env.CLIENT_SECRET}","audience":"https://${process.env.DOMAIN}/api/v2/","grant_type":"client_credentials"}`
+  {
+    client_id: process.env.CLIENT_ID,
+    client_secret: process.env.CLIENT_SECRET,
+    audience: `${FULL_DOMAIN}/api/v2/`,
+    grant_type: 'client_credentials'
+  }
 )
 
 request(options, function (error, response, body) {
@@ -32,12 +38,20 @@ request(options, function (error, response, body) {
 const createJob = token => {
   const options = getOptions(
     '/api/v2/jobs/users-exports',
-    '{"format":"csv","fields":[{"name":"email"},{"name":"user_metadata.newsletter"},{"name":"user_metadata.fourThreeMailingList.given"},{"name":"email_verified"}]}',
+    {
+      'format': 'csv',
+      'fields': [
+        {'name': 'email'},
+        {'name': 'email_verified'},
+        // other fields here
+        // e.g. {'name': 'user_metadata.subscribed'}
+      ]
+    },
     token,
   )
   console.log('Creating export job.')
 
-  request(options, function(error, response, body) {
+  request(options, function (error, response, body) {
     if (error) throw new Error(error)
     const jobId = JSON.parse(body).id
 
@@ -49,14 +63,14 @@ const createJob = token => {
 const getJob = (token, jobId) => {
   const options = getOptions('/api/v2/jobs/' + jobId, null, token, 'GET')
 
-  request(options, function(error, response, body) {
+  request(options, function (error, response, body) {
     if (error) throw new Error(error)
     const {location} = JSON.parse(body)
 
     if (location) {
       console.log('Complete!')
       console.log(location)
-      opn(location).then(() => process.exit())
+      opn(location)
     } else {
       console.log('Pending...')
       setTimeout(() => getJob(token, jobId), 5000)
