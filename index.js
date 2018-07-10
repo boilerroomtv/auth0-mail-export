@@ -56,7 +56,7 @@ const getJob = (token, jobId) => {
     if (location) {
       console.log('Complete!')
       console.log(location)
-      opn(location)
+      opn(location).then(() => process.exit())
     } else {
       console.log('Pending...')
       setTimeout(() => getJob(token, jobId), 5000)
